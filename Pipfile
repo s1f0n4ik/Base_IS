@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 django = "*"
 djangorestframework = "*"
+faker = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 

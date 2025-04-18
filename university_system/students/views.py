@@ -1,35 +1,71 @@
 # views.py
 from rest_framework import generics
 from rest_framework.response import Response
-from .models import Student
-from .serializers import StudentSerializer
-from django.db.models import Count
+from .models import Student, Faculty, Program
+from .serializers import StudentSerializer, FacultySerializer, ProgramSerializer
+from django.db.models import Count, Q
 from datetime import datetime
 
 
-class StudentListCreateView(generics.ListCreateAPIView):
-    queryset = Student.objects.all()
+class StudentListView(generics.ListAPIView):
     serializer_class = StudentSerializer
 
+    def get_queryset(self):
+        queryset = Student.objects.all()
 
-class EnrollmentStatsView(generics.GenericAPIView):
-    def get(self, request):
-        date_str = request.query_params.get('date', None)
-        if not date_str:
-            return Response({"error": "Date parameter is required"}, status=400)
+        # Фильтрация по дате зачисления
+        enrollment_date = self.request.query_params.get('enrollment_date', None)
+        if enrollment_date:
+            try:
+                date = datetime.strptime(enrollment_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(enrollment_date=date)
+            except ValueError:
+                pass
 
-        try:
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=400)
+        # Фильтрация по факультету
+        faculty_id = self.request.query_params.get('faculty_id', None)
+        if faculty_id:
+            queryset = queryset.filter(faculty_id=faculty_id)
 
-        count = Student.objects.filter(enrollment_date=date).count()
-        students = Student.objects.filter(enrollment_date=date)
+        # Фильтрация по направлению
+        program_id = self.request.query_params.get('program_id', None)
+        if program_id:
+            queryset = queryset.filter(program_id=program_id)
 
-        serializer = StudentSerializer(students, many=True)
+        # Фильтрация по курсу
+        course = self.request.query_params.get('course', None)
+        if course:
+            queryset = queryset.filter(course=course)
 
-        return Response({
-            "date": date_str,
-            "count": count,
-            "students": serializer.data
-        })
+        # Фильтрация по гражданству
+        citizenship = self.request.query_params.get('citizenship', None)
+        if citizenship:
+            queryset = queryset.filter(citizenship__icontains=citizenship)
+
+        # Фильтрация по периоду зачисления
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+        if start_date and end_date:
+            try:
+                start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(enrollment_date__range=[start, end])
+            except ValueError:
+                pass
+
+        return queryset.order_by('last_name', 'first_name')
+
+
+class FacultyListView(generics.ListAPIView):
+    queryset = Faculty.objects.all()
+    serializer_class = FacultySerializer
+
+
+class ProgramListView(generics.ListAPIView):
+    serializer_class = ProgramSerializer
+
+    def get_queryset(self):
+        faculty_id = self.request.query_params.get('faculty_id', None)
+        if faculty_id:
+            return Program.objects.filter(faculty_id=faculty_id)
+        return Program.objects.all()
