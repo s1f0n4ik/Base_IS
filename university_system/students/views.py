@@ -71,5 +71,10 @@ class ProgramListView(generics.ListAPIView):
     def get_queryset(self):
         department_id = self.request.query_params.get('department_id', None)
         if department_id:
-            return Program.objects.filter(department_id=department_id)
+            # Преобразуем строку "1,2,3" в список [1, 2, 3]
+            try:
+                department_ids = [int(id) for id in department_id.split(',')]
+                return Program.objects.filter(department_id__in=department_ids)
+            except (ValueError, TypeError):
+                return Program.objects.none()
         return Program.objects.all()

@@ -35,23 +35,25 @@ function App() {
   }, []);
 
   // Загрузка программ при изменении выбранных кафедр
-  useEffect(() => {
-    const loadPrograms = async () => {
-      if (filters.departments.length > 0) {
-        try {
-          const response = await axios.get('http://localhost:8000/api/programs/', {
-            params: { department_id: filters.departments.join(',') }
-          });
-          setPrograms(response.data);
-        } catch (err) {
-          setError('Ошибка загрузки направлений');
+    useEffect(() => {
+      const loadPrograms = async () => {
+        if (filters.departments.length > 0) {
+          try {
+            const response = await axios.get('http://localhost:8000/api/programs/', {
+              params: {
+                department_id: filters.departments.join(',')
+              }
+            });
+            setPrograms(response.data);
+          } catch (err) {
+            setError('Ошибка загрузки направлений');
+          }
+        } else {
+          setPrograms([]);
         }
-      } else {
-        setPrograms([]);
-      }
-    };
-    loadPrograms();
-  }, [filters.departments]);
+      };
+      loadPrograms();
+    }, [filters.departments]);
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
