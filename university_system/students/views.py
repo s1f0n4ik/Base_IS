@@ -1,9 +1,7 @@
-# views.py
 from rest_framework import generics
-from rest_framework.response import Response
-from .models import Student, Faculty, Program
-from .serializers import StudentSerializer, FacultySerializer, ProgramSerializer
-from django.db.models import Count, Q
+from .models import Student, Department, Program
+from .serializers import StudentSerializer, DepartmentSerializer, ProgramSerializer
+from django.db.models import Q
 from datetime import datetime
 
 
@@ -12,60 +10,66 @@ class StudentListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Student.objects.all()
+        params = self.request.query_params
 
-        # Фильтрация по дате зачисления
-        enrollment_date = self.request.query_params.get('enrollment_date', None)
-        if enrollment_date:
+        # Фильтрация по датам
+        if 'enrollment_date' in params:
             try:
-                date = datetime.strptime(enrollment_date, '%Y-%m-%d').date()
+                date = datetime.strptime(params['enrollment_date'], '%Y-%m-%d').date()
                 queryset = queryset.filter(enrollment_date=date)
             except ValueError:
                 pass
 
-        # Фильтрация по факультету
-        faculty_id = self.request.query_params.get('faculty_id', None)
-        if faculty_id:
-            queryset = queryset.filter(faculty_id=faculty_id)
-
-        # Фильтрация по направлению
-        program_id = self.request.query_params.get('program_id', None)
-        if program_id:
-            queryset = queryset.filter(program_id=program_id)
-
-        # Фильтрация по курсу
-        course = self.request.query_params.get('course', None)
-        if course:
-            queryset = queryset.filter(course=course)
-
-        # Фильтрация по гражданству
-        citizenship = self.request.query_params.get('citizenship', None)
-        if citizenship:
-            queryset = queryset.filter(citizenship__icontains=citizenship)
-
-        # Фильтрация по периоду зачисления
-        start_date = self.request.query_params.get('start_date', None)
-        end_date = self.request.query_params.get('end_date', None)
-        if start_date and end_date:
+        if 'start_date' in params and 'end_date' in params:
             try:
-                start = datetime.strptime(start_date, '%Y-%m-%d').date()
-                end = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start = datetime.strptime(params['start_date'], '%Y-%m-%d').date()
+                end = datetime.strptime(params['end_date'], '%Y-%m-%d').date()
                 queryset = queryset.filter(enrollment_date__range=[start, end])
             except ValueError:
                 pass
 
+        # Множественная фильтрация по кафедрам
+        if 'departments' in params:
+            departments = params['departments'].split(',')
+            queryset = queryset.filter(department_id__in=departments)
+
+        # Множественная фильтрация по направлениям
+        if 'programs' in params:
+            programs = params['programs'].split(',')
+            queryset = queryset.filter(program_id__in=programs)
+
+        # Множественная фильтрация по курсам
+        if 'courses' in params:
+            courses = params['courses'].split(',')
+            queryset = queryset.filter(course__in=courses)
+
+        # Фильтрация по гражданству
+        if 'citizenship' in params:
+            queryset = queryset.filter(citizenship__icontains=params['citizenship'])
+
+        # Фильтрация по типу обучения (бюджет/контракт)
+        if 'education_types' in params:
+            types = params['education_types'].split(',')
+            queryset = queryset.filter(education_type__in=types)
+
+        # Фильтрация по основанию поступления (целевое/квота/общий)
+        if 'admission_bases' in params:
+            bases = params['admission_bases'].split(',')
+            queryset = queryset.filter(admission_basis__in=bases)
+
         return queryset.order_by('last_name', 'first_name')
 
 
-class FacultyListView(generics.ListAPIView):
-    queryset = Faculty.objects.all()
-    serializer_class = FacultySerializer
+class DepartmentListView(generics.ListAPIView):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
 
 
 class ProgramListView(generics.ListAPIView):
     serializer_class = ProgramSerializer
 
     def get_queryset(self):
-        faculty_id = self.request.query_params.get('faculty_id', None)
-        if faculty_id:
-            return Program.objects.filter(faculty_id=faculty_id)
+        department_id = self.request.query_params.get('department_id', None)
+        if department_id:
+            return Program.objects.filter(department_id=department_id)
         return Program.objects.all()

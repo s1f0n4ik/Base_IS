@@ -5,38 +5,43 @@ import './App.css';
 function App() {
   const [filters, setFilters] = useState({
     enrollment_date: '',
-    faculty_id: '',
-    program_id: '',
-    course: '',
+    departments: [],
+    programs: [],
+    courses: [],
     citizenship: '',
+    education_types: [],
+    admission_bases: [],
     start_date: '',
     end_date: '',
   });
+
   const [students, setStudents] = useState([]);
-  const [faculties, setFaculties] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Загрузка факультетов при монтировании
+  // Загрузка кафедр
   useEffect(() => {
-    const loadFaculties = async () => {
+    const loadDepartments = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/faculties/');
-        setFaculties(response.data);
+        const response = await axios.get('http://localhost:8000/api/departments/');
+        setDepartments(response.data);
       } catch (err) {
-        setError('Ошибка загрузки факультетов');
+        setError('Ошибка загрузки кафедр');
       }
     };
-    loadFaculties();
+    loadDepartments();
   }, []);
 
-  // Загрузка программ при изменении выбранного факультета
+  // Загрузка программ при изменении выбранных кафедр
   useEffect(() => {
     const loadPrograms = async () => {
-      if (filters.faculty_id) {
+      if (filters.departments.length > 0) {
         try {
-          const response = await axios.get(`http://localhost:8000/api/programs/?faculty_id=${filters.faculty_id}`);
+          const response = await axios.get('http://localhost:8000/api/programs/', {
+            params: { department_id: filters.departments.join(',') }
+          });
           setPrograms(response.data);
         } catch (err) {
           setError('Ошибка загрузки направлений');
@@ -46,16 +51,21 @@ function App() {
       }
     };
     loadPrograms();
-  }, [filters.faculty_id]);
+  }, [filters.departments]);
 
   const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value,
-      // Сбрасываем program_id при изменении факультета
-      ...(name === 'faculty_id' && { program_id: '' }),
-    }));
+    const { name, value, type, checked } = e.target;
+
+    if (type === 'checkbox') {
+      setFilters(prev => {
+        const newValues = checked
+          ? [...prev[name], value]
+          : prev[name].filter(v => v !== value);
+        return { ...prev, [name]: newValues };
+      });
+    } else {
+      setFilters(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -64,10 +74,22 @@ function App() {
     setError('');
 
     try {
-      // Удаляем пустые параметры фильтрации
-      const params = Object.fromEntries(
-        Object.entries(filters).filter(([_, v]) => v !== '')
-      );
+      // Преобразуем массивы в строки для GET-параметров
+      const params = {
+        ...filters,
+        departments: filters.departments.join(','),
+        programs: filters.programs.join(','),
+        courses: filters.courses.join(','),
+        education_types: filters.education_types.join(','),
+        admission_bases: filters.admission_bases.join(','),
+      };
+
+      // Удаляем пустые параметры
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === []) {
+          delete params[key];
+        }
+      });
 
       const response = await axios.get('http://localhost:8000/api/students/', { params });
       setStudents(response.data);
@@ -82,10 +104,12 @@ function App() {
   const resetFilters = () => {
     setFilters({
       enrollment_date: '',
-      faculty_id: '',
-      program_id: '',
-      course: '',
+      departments: [],
+      programs: [],
+      courses: [],
       citizenship: '',
+      education_types: [],
+      admission_bases: [],
       start_date: '',
       end_date: '',
     });
@@ -98,97 +122,181 @@ function App() {
       <h1>Информационная система университета</h1>
 
       <form onSubmit={handleSubmit} className="filter-form">
-        <div className="form-row">
-          <div className="form-group">
-            <label>Дата зачисления:</label>
-            <input
-              type="date"
-              name="enrollment_date"
-              value={filters.enrollment_date}
-              onChange={handleFilterChange}
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Период зачисления:</label>
-            <div className="date-range">
+        {/* Блок дат */}
+        <div className="filter-section">
+          <h3>Даты</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Конкретная дата зачисления:</label>
               <input
                 type="date"
-                name="start_date"
-                value={filters.start_date}
+                name="enrollment_date"
+                value={filters.enrollment_date}
                 onChange={handleFilterChange}
-                placeholder="С"
               />
+            </div>
+            <div className="form-group">
+              <label>Период зачисления:</label>
+              <div className="date-range">
+                <input
+                  type="date"
+                  name="start_date"
+                  value={filters.start_date}
+                  onChange={handleFilterChange}
+                  placeholder="С"
+                />
+                <input
+                  type="date"
+                  name="end_date"
+                  value={filters.end_date}
+                  onChange={handleFilterChange}
+                  placeholder="По"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Блок кафедр и программ */}
+        <div className="filter-section">
+          <h3>Кафедры и направления</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Кафедры:</label>
+              <div className="checkbox-group">
+                {departments.map(dept => (
+                  <label key={dept.id}>
+                    <input
+                      type="checkbox"
+                      name="departments"
+                      value={dept.id}
+                      checked={filters.departments.includes(String(dept.id))}
+                      onChange={handleFilterChange}
+                    />
+                    {dept.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Направления:</label>
+              <div className="checkbox-group">
+                {programs.map(prog => (
+                  <label key={prog.id}>
+                    <input
+                      type="checkbox"
+                      name="programs"
+                      value={prog.id}
+                      checked={filters.programs.includes(String(prog.id))}
+                      onChange={handleFilterChange}
+                      disabled={filters.departments.length === 0}
+                    />
+                    {prog.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Блок курсов и гражданства */}
+        <div className="filter-section">
+          <h3>Курсы и гражданство</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Курсы:</label>
+              <div className="checkbox-group">
+                {[1, 2, 3, 4, 5, 6].map(course => (
+                  <label key={course}>
+                    <input
+                      type="checkbox"
+                      name="courses"
+                      value={course}
+                      checked={filters.courses.includes(String(course))}
+                      onChange={handleFilterChange}
+                    />
+                    {course}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Гражданство:</label>
               <input
-                type="date"
-                name="end_date"
-                value={filters.end_date}
+                type="text"
+                name="citizenship"
+                value={filters.citizenship}
                 onChange={handleFilterChange}
-                placeholder="По"
+                placeholder="Введите гражданство"
               />
             </div>
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Факультет:</label>
-            <select
-              name="faculty_id"
-              value={filters.faculty_id}
-              onChange={handleFilterChange}
-            >
-              <option value="">Все факультеты</option>
-              {faculties.map(faculty => (
-                <option key={faculty.id} value={faculty.id}>
-                  {faculty.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Направление:</label>
-            <select
-              name="program_id"
-              value={filters.program_id}
-              onChange={handleFilterChange}
-              disabled={!filters.faculty_id}
-            >
-              <option value="">Все направления</option>
-              {programs.map(program => (
-                <option key={program.id} value={program.id}>
-                  {program.name} ({program.faculty.name})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label>Курс:</label>
-            <select
-              name="course"
-              value={filters.course}
-              onChange={handleFilterChange}
-            >
-              <option value="">Все курсы</option>
-              {[1, 2, 3, 4, 5, 6].map(course => (
-                <option key={course} value={course}>{course}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Гражданство:</label>
-            <input
-              type="text"
-              name="citizenship"
-              value={filters.citizenship}
-              onChange={handleFilterChange}
-              placeholder="Введите гражданство"
-            />
+        {/* Блок типа обучения и основания поступления */}
+        <div className="filter-section">
+          <h3>Тип обучения и основание поступления</h3>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Тип обучения:</label>
+              <div className="checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="education_types"
+                    value="budget"
+                    checked={filters.education_types.includes('budget')}
+                    onChange={handleFilterChange}
+                  />
+                  Бюджет
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="education_types"
+                    value="contract"
+                    checked={filters.education_types.includes('contract')}
+                    onChange={handleFilterChange}
+                  />
+                  Контракт
+                </label>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Основание поступления:</label>
+              <div className="checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="admission_bases"
+                    value="general"
+                    checked={filters.admission_bases.includes('general')}
+                    onChange={handleFilterChange}
+                  />
+                  Общий конкурс
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="admission_bases"
+                    value="target"
+                    checked={filters.admission_bases.includes('target')}
+                    onChange={handleFilterChange}
+                  />
+                  Целевое
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="admission_bases"
+                    value="quota"
+                    checked={filters.admission_bases.includes('quota')}
+                    onChange={handleFilterChange}
+                  />
+                  Квота
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -212,24 +320,26 @@ function App() {
             <thead>
               <tr>
                 <th>ФИО</th>
-                <th>Дата зачисления</th>
-                <th>Дата отчисления</th>
-                <th>Факультет</th>
+                <th>Кафедра</th>
                 <th>Направление</th>
                 <th>Курс</th>
+                <th>Тип обучения</th>
+                <th>Основание</th>
                 <th>Гражданство</th>
+                <th>Дата зачисления</th>
               </tr>
             </thead>
             <tbody>
               {students.map(student => (
                 <tr key={student.id}>
                   <td>{student.last_name} {student.first_name} {student.middle_name}</td>
-                  <td>{student.enrollment_date}</td>
-                  <td>{student.expulsion_date || '-'}</td>
-                  <td>{student.faculty.name}</td>
+                  <td>{student.department.name}</td>
                   <td>{student.program.name}</td>
                   <td>{student.course}</td>
+                  <td>{student.education_type_display}</td>
+                  <td>{student.admission_basis_display}</td>
                   <td>{student.citizenship}</td>
+                  <td>{student.enrollment_date}</td>
                 </tr>
               ))}
             </tbody>

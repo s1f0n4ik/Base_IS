@@ -1,4 +1,3 @@
-# populate_db.py
 import os
 import django
 import random
@@ -8,48 +7,50 @@ from datetime import datetime, timedelta
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'university_system.settings')
 django.setup()
 
-from students.models import Faculty, Program, Student
+from students.models import Department, Program, Student
 
 fake = Faker('ru_RU')
 
 
-def create_faculties_and_programs():
-    faculties = [
-        {'name': 'Инженерный факультет'},
-        {'name': 'Факультет экономики'},
-        {'name': 'Гуманитарный факультет'},
-        {'name': 'Факультет информационных технологий'},
-        {'name': 'Медицинский факультет'},
+def create_departments_and_programs():
+    departments = [
+        {'name': 'Кафедра информатики'},
+        {'name': 'Кафедра математики'},
+        {'name': 'Кафедра физики'},
+        {'name': 'Кафедра экономики'},
+        {'name': 'Кафедра лингвистики'},
     ]
 
     programs_data = {
-        'Инженерный факультет': ['Механика', 'Строительство', 'Электротехника'],
-        'Факультет экономики': ['Экономика', 'Менеджмент', 'Финансы'],
-        'Гуманитарный факультет': ['История', 'Философия', 'Филология'],
-        'Факультет информационных технологий': ['Компьютерные науки', 'Кибербезопасность', 'Искусственный интеллект'],
-        'Медицинский факультет': ['Лечебное дело', 'Стоматология', 'Фармация'],
+        'Кафедра информатики': ['Программная инженерия', 'Искусственный интеллект'],
+        'Кафедра математики': ['Прикладная математика', 'Теоретическая математика'],
+        'Кафедра физики': ['Ядерная физика', 'Квантовая механика'],
+        'Кафедра экономики': ['Финансы', 'Менеджмент'],
+        'Кафедра лингвистики': ['Английская филология', 'Переводоведение'],
     }
 
-    for faculty_data in faculties:
-        faculty, created = Faculty.objects.get_or_create(name=faculty_data['name'])
+    for dept_data in departments:
+        dept, created = Department.objects.get_or_create(name=dept_data['name'])
 
-        for program_name in programs_data[faculty.name]:
+        for program_name in programs_data[dept.name]:
             Program.objects.get_or_create(
                 name=program_name,
-                faculty=faculty
+                department=dept
             )
 
-    print("Созданы факультеты и направления")
+    print("Созданы кафедры и направления")
 
 
-def create_students(num_students=100):
-    faculties = Faculty.objects.all()
+def create_students(num_students=200):
+    departments = Department.objects.all()
     programs = Program.objects.all()
-    citizenships = ['Россия', 'Казахстан', 'Беларусь', 'Узбекистан', 'Армения', 'Азербайджан']
+    citizenships = ['Россия', 'Казахстан', 'Беларусь', 'Узбекистан', 'Армения']
+    education_types = ['budget', 'contract']
+    admission_bases = ['general', 'target', 'quota']
 
     for _ in range(num_students):
-        faculty = random.choice(faculties)
-        program = random.choice(programs.filter(faculty=faculty))
+        dept = random.choice(departments)
+        program = random.choice(programs.filter(department=dept))
 
         enrollment_date = fake.date_between_dates(
             date_start=datetime(2018, 1, 1),
@@ -71,15 +72,17 @@ def create_students(num_students=100):
             middle_name=fake.middle_name(),
             enrollment_date=enrollment_date,
             expulsion_date=expulsion_date,
-            faculty=faculty,
+            department=dept,
             program=program,
             citizenship=random.choice(citizenships),
-            course=random.randint(1, 6)
+            course=random.randint(1, 6),
+            education_type=random.choice(education_types),
+            admission_basis=random.choice(admission_bases)
         )
 
     print(f"Создано {num_students} студентов")
 
 
 if __name__ == '__main__':
-    create_faculties_and_programs()
-    create_students(200)  # Создаем 200 студентов для тестов
+    create_departments_and_programs()
+    create_students(300)
