@@ -5,14 +5,17 @@ import './App.css';
 function App() {
   const [filters, setFilters] = useState({
     enrollment_date: '',
-    departments: [],
-    programs: [],
+    current_departments: [],
+    current_programs: [],
     courses: [],
     citizenship: '',
     education_types: [],
     admission_bases: [],
     start_date: '',
     end_date: '',
+    statuses: [],
+    in_academic: false,
+    expulsion_reasons: []
   });
 
   const [students, setStudents] = useState([]);
@@ -37,11 +40,11 @@ function App() {
   // Загрузка программ при изменении выбранных кафедр
     useEffect(() => {
       const loadPrograms = async () => {
-        if (filters.departments.length > 0) {
+        if (filters.current_departments.length > 0) {
           try {
             const response = await axios.get('http://localhost:8000/api/programs/', {
               params: {
-                department_id: filters.departments.join(',')
+                department_id: filters.current_departments.join(',')
               }
             });
             setPrograms(response.data);
@@ -53,7 +56,7 @@ function App() {
         }
       };
       loadPrograms();
-    }, [filters.departments]);
+    }, [filters.current_departments]);
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -79,11 +82,13 @@ function App() {
       // Преобразуем массивы в строки для GET-параметров
       const params = {
         ...filters,
-        departments: filters.departments.join(','),
-        programs: filters.programs.join(','),
+        current_departments: filters.current_departments.join(','),
+        current_programs: filters.current_programs.join(','),
         courses: filters.courses.join(','),
         education_types: filters.education_types.join(','),
         admission_bases: filters.admission_bases.join(','),
+        statuses: filters.statuses.join(','),
+        expulsion_reasons: filters.expulsion_reasons.join(','),
       };
 
       // Удаляем пустые параметры
@@ -106,8 +111,8 @@ function App() {
   const resetFilters = () => {
     setFilters({
       enrollment_date: '',
-      departments: [],
-      programs: [],
+      current_departments: [],
+      current_programs: [],
       courses: [],
       citizenship: '',
       education_types: [],
@@ -170,9 +175,9 @@ function App() {
                   <label key={dept.id}>
                     <input
                       type="checkbox"
-                      name="departments"
+                      name="current_departments"
                       value={dept.id}
-                      checked={filters.departments.includes(String(dept.id))}
+                      checked={filters.current_departments.includes(String(dept.id))}
                       onChange={handleFilterChange}
                     />
                     {dept.name}
@@ -180,23 +185,20 @@ function App() {
                 ))}
               </div>
             </div>
-            <div className="form-group">
-              <label>Направления:</label>
-              <div className="checkbox-group">
-                {programs.map(prog => (
-                  <label key={prog.id}>
-                    <input
-                      type="checkbox"
-                      name="programs"
-                      value={prog.id}
-                      checked={filters.programs.includes(String(prog.id))}
-                      onChange={handleFilterChange}
-                      disabled={filters.departments.length === 0}
-                    />
-                    {prog.name}
-                  </label>
-                ))}
-              </div>
+            <div className="checkbox-group">
+              {programs.filter(prog => prog.name && prog.name.trim() !== "").map(prog => (
+                <label key={prog.id}>
+                  <input
+                    type="checkbox"
+                    name="current_programs"
+                    value={prog.id}
+                    checked={filters.current_programs.includes(String(prog.id))}
+                    onChange={handleFilterChange}
+                    disabled={filters.current_departments.length === 0}
+                  />
+                  {prog.name}
+                </label>
+              ))}
             </div>
           </div>
         </div>
@@ -302,6 +304,88 @@ function App() {
           </div>
         </div>
 
+        <div className="filter-section">
+          <h3>Статус студента</h3>
+          <div className="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                name="statuses"
+                value="active"
+                checked={filters.statuses.includes('active')}
+                onChange={handleFilterChange}
+              />
+              Обучается
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="statuses"
+                value="academic"
+                checked={filters.statuses.includes('academic')}
+                onChange={handleFilterChange}
+              />
+              В академе
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="statuses"
+                value="graduated"
+                checked={filters.statuses.includes('graduated')}
+                onChange={handleFilterChange}
+              />
+              Выпускники
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="statuses"
+                value="expelled"
+                checked={filters.statuses.includes('expelled')}
+                onChange={handleFilterChange}
+              />
+              Отчисленные
+            </label>
+          </div>
+        </div>
+
+        <div className="filter-section">
+          <h3>Причина отчисления (если применимо)</h3>
+          <div className="checkbox-group">
+            <label>
+              <input
+                type="checkbox"
+                name="expulsion_reasons"
+                value="own_desire"
+                checked={filters.expulsion_reasons.includes('own_desire')}
+                onChange={handleFilterChange}
+              />
+              По собственному желанию
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="expulsion_reasons"
+                value="transfer"
+                checked={filters.expulsion_reasons.includes('transfer')}
+                onChange={handleFilterChange}
+              />
+              По переводу
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name="expulsion_reasons"
+                value="academic_failure"
+                checked={filters.expulsion_reasons.includes('academic_failure')}
+                onChange={handleFilterChange}
+              />
+              За неуспеваемость
+            </label>
+          </div>
+        </div>
+
         <div className="form-actions">
           <button type="submit" className="btn" disabled={loading}>
             {loading ? 'Загрузка...' : 'Применить фильтры'}
@@ -335,8 +419,8 @@ function App() {
               {students.map(student => (
                 <tr key={student.id}>
                   <td>{student.last_name} {student.first_name} {student.middle_name}</td>
-                  <td>{student.department.name}</td>
-                  <td>{student.program.name}</td>
+                  <td>{student.current_department?.name || 'Не указано'}</td>
+                  <td>{student.current_program?.name || 'Не указано'}</td>
                   <td>{student.course}</td>
                   <td>{student.education_type_display}</td>
                   <td>{student.admission_basis_display}</td>

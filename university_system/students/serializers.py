@@ -13,16 +13,20 @@ class ProgramSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Program
-        fields = ['id', 'name', 'department']
+        fields = ['id', 'name', 'code', 'department']
 
 
 class StudentSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
-    program = ProgramSerializer(read_only=True)
+    current_department = DepartmentSerializer(read_only=True)
+    current_program = ProgramSerializer(read_only=True)
+    initial_department = DepartmentSerializer(read_only=True)
+    initial_program = ProgramSerializer(read_only=True)
+
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
     education_type_display = serializers.CharField(source='get_education_type_display', read_only=True)
     admission_basis_display = serializers.CharField(source='get_admission_basis_display', read_only=True)
+    expulsion_reason_display = serializers.CharField(source='get_expulsion_reason_display', read_only=True)
 
     class Meta:
         model = Student
         fields = '__all__'
-        extra_fields = ['education_type_display', 'admission_basis_display']

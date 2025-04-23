@@ -8,6 +8,8 @@ django = "*"
 djangorestframework = "*"
 faker = "*"
 django-cors-headers = "*"
+pandas = "*"
+openpyxl = "*"
 
 [dev-packages]
 
